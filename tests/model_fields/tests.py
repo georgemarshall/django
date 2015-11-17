@@ -9,7 +9,9 @@ from django import forms, test
 from django.apps import apps
 from django.core import checks, validators
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, models, transaction
+from django.db import (
+    DataError, IntegrityError, connection, models, transaction,
+)
 from django.db.models.fields import (
     NOT_PROVIDED, AutoField, BigIntegerField, BinaryField, BooleanField,
     CharField, CommaSeparatedIntegerField, DateField, DateTimeField,
@@ -744,7 +746,7 @@ class IntegerFieldTests(test.TestCase):
     def test_backend_range_validation(self):
         """
         Ensure that backend specific range are enforced at the model
-        validation level. ref #12030.
+        validation level. ref #12030, #25767.
         """
         min_value, max_value = self.backend_range
 
@@ -755,6 +757,14 @@ class IntegerFieldTests(test.TestCase):
             }
             with self.assertRaisesMessage(ValidationError, expected_message):
                 instance.full_clean()
+            try:
+                with transaction.atomic():
+                    instance.save()
+                qs = self.model.objects.filter(value__lte=min_value)
+                self.assertEqual(qs.count(), 1)
+                self.assertEqual(qs[0].value, min_value)
+            except (DataError, IntegrityError):
+                pass
             instance.value = min_value
             instance.full_clean()
 
@@ -765,6 +775,14 @@ class IntegerFieldTests(test.TestCase):
             }
             with self.assertRaisesMessage(ValidationError, expected_message):
                 instance.full_clean()
+            try:
+                with transaction.atomic():
+                    instance.save()
+                qs = self.model.objects.filter(value__gte=max_value)
+                self.assertEqual(qs.count(), 1)
+                self.assertEqual(qs[0].value, max_value)
+            except (DataError, IntegrityError):
+                pass
             instance.value = max_value
             instance.full_clean()
 

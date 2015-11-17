@@ -64,3 +64,7 @@ Bugfixes
   ``PositiveSmallIntegerField`` on MySQL resulting in values greater than
   4294967295 or 65535, respectively, passing validation and being silently
   truncated by the database (:ticket:`25767`).
+* Fixed a data loss possibility when using
+  :class:`~django.db.models.PositiveIntegerField` or
+  :class:`~django.db.models.PositiveSmallIntegerField` with
+  ``django.db.backends.mysql`` (:ticket:`25767`)
